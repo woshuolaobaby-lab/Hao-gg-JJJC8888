@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""基金智能监控雷达 PRO MAX V9 · 115只基金完整恢复版"""
+"""基金智能监控雷达 PRO MAX V9.2 · 153只基金 · 多通道加速稳定版"""
 import re,time,json,math
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor,as_completed
@@ -7,212 +7,347 @@ from datetime import datetime
 import numpy as np,pandas as pd,requests,streamlit as st
 
 ROOT=Path(__file__).resolve().parent
-HEAD={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151 Safari/537.36","Referer":"https://fund.eastmoney.com/"}
+HEAD={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151 Safari/537.36","Referer":"https://fund.eastmoney.com/","Accept":"*/*","Connection":"keep-alive"}
 st.set_page_config(page_title="基金智能监控雷达 PRO MAX V9",page_icon="📡",layout="wide")
 
 # 原V7的115只基金：内置，防止升级后丢失
 BUILTIN_FUNDS=[
     ('001549', '天弘上证50ETF'),
-    ('530000', '天弘上证50'),
+    ('530000', '天弘上证50场内'),
     ('006021', '广发沪深300'),
-    ('510300', '华泰柏瑞沪深300ETF(场内)'),
-    ('020465', '招商半导体'),
-    ('561980', '招商半导体/半导体设备ETF'),
+    ('510300', '沪深300ETF'),
     ('011609', '易方达科创50'),
-    ('588080', '易方达科创50(场内)'),
+    ('588080', '科创50场内'),
     ('019817', '广发创业板ETF'),
-    ('159952', '广发创业板(场内)'),
-    ('005555', '南方恒生国企ETF'),
-    ('159954', '恒生中国企业(场内)'),
-    ('012857', '汇添富主要消费'),
-    ('159928', '汇添富消费(场内)'),
-    ('005064', '广发家用电器'),
-    ('560880', '广发家电(场内)'),
-    ('000083', '汇添富消费行业'),
-    ('165520', '中信保诚800有色'),
-    ('014415', '招商畜牧养殖'),
-    ('516670', '畜牧养殖(场内)'),
-    ('010770', '天弘农业'),
-    ('512620', '天弘农业(场内)'),
-    ('015040', '国泰食品饮料'),
-    ('159736', '国泰食品饮料(场内)'),
+    ('159952', '创业板场内'),
+    ('588000', '科创50ETF华夏'),
+    ('013305', '科创创业50'),
+    ('023918', '自由现金流'),
+    ('159201', '自由现金流场内'),
+    ('017512', '北证50'),
+    ('020465', '招商半导体'),
+    ('561980', '半导体设备ETF'),
+    ('020482', '机器人'),
+    ('560770', '机器人ETF'),
+    ('020900', '通信设备'),
+    ('515880', '通信ETF'),
+    ('024195', '卫星'),
+    ('159206', '卫星ETF'),
+    ('012734', '人工智能'),
+    ('006503', '集成电路'),
+    ('001072', '智能装备'),
+    ('022364', '永赢科技'),
+    ('019830', '数字产业'),
+    ('016664', '高端制造'),
+    ('008989', '科技创新'),
+    ('009049', '易方达高端'),
+    ('159852', '软件服务ETF'),
+    ('012621', '软件服务场内'),
+    ('002170', '东吴移动'),
+    ('515250', '智能汽车场内'),
+    ('013292', '富国智能汽车'),
+    ('008586', '华夏人工智能'),
+    ('019062', '易方达软件'),
+    ('562930', '软件易方达场内'),
+    ('020686', '科创新材料'),
+    ('588160', '科创新材料场内'),
+    ('019170', '云计算'),
+    ('023885', '金融科技'),
+    ('516100', '金融科技场内'),
+    ('001630', '计算机'),
+    ('159998', '计算机场内'),
+    ('017877', '新能源'),
+    ('018926', '电池'),
+    ('019875', '稀有金属'),
+    ('001410', '信澳新能源'),
+    ('161028', '新能源汽车'),
+    ('501226', '全球新能源'),
+    ('019058', '绿色电力'),
+    ('260112', '基建能源'),
+    ('013817', '光伏'),
+    ('516290', '光伏场内'),
+    ('159755', '电池ETF'),
+    ('159608', '稀有金属ETF'),
+    ('159611', '电力ETF'),
+    ('016185', '电力公用'),
+    ('013476', '智能电动车'),
+    ('016900', '碳中和'),
+    ('562990', '碳中和场内'),
+    ('025857', '电网设备'),
+    ('159326', '电网设备场内'),
+    ('006113', '创新药'),
+    ('501009', '生物科技'),
+    ('159892', '恒生医药ETF'),
+    ('012738', '创新药广发'),
+    ('515120', '创新药场内'),
+    ('007883', '医药易方达'),
+    ('512010', '医药ETF场内'),
+    ('015945', '国防军工'),
+    ('512560', '军工ETF'),
+    ('025732', '航天航空'),
+    ('028091', '航天航空行业'),
+    ('161725', '白酒'),
+    ('000083', '消费行业'),
+    ('012857', '主要消费'),
+    ('159928', '消费场内'),
+    ('560880', '家电场内'),
+    ('015040', '食品饮料'),
+    ('159736', '食品饮料场内'),
+    ('512690', '酒ETF'),
+    ('005064', '家用电器'),
+    ('159732', '消费电子ETF'),
+    ('001469', '金融地产'),
+    ('159940', '金融地产场内'),
+    ('012874', '证券指数'),
+    ('005663', '金融精选'),
+    ('161029', '银行指数'),
     ('006697', '华宝银行'),
-    ('512800', '银行(场内)'),
-    ('001469', '广发金融地产'),
-    ('159940', '广发金融地产(场内)'),
-    ('005224', '广发基建工程'),
-    ('516970', '广发基建(场内)'),
-    ('008190', '国泰钢铁'),
-    ('515210', '国泰钢铁(场内)'),
-    ('008280', '国泰煤炭'),
-    ('515220', '国泰煤炭(场内)'),
-    ('008987', '广发上海金'),
-    ('518600', '广发金(场内)'),
-    ('102769', '华夏动漫游戏'),
-    ('159869', '华夏动漫游戏(场内)'),
-    ('004753', '广发中证传媒'),
-    ('512980', '广发中证传媒(场内)'),
-    ('013817', '汇添富中证光伏'),
-    ('516290', '汇添富光伏(场内)'),
-    ('159852', '嘉实中证软件服务ETF'),
-    ('012621', '嘉实中证软件服务ETF(场外)'),
+    ('512800', '银行场内'),
+    ('512880', '证券ETF'),
+    ('018099', '保险'),
+    ('010365', '香港银行'),
+    ('015896', '化工指数'),
+    ('159870', '化工ETF'),
+    ('005224', '基建工程'),
+    ('516970', '基建场内'),
+    ('014415', '畜牧养殖'),
+    ('516670', '畜牧场内'),
+    ('010770', '天弘农业'),
+    ('512620', '农业场内'),
+    ('008190', '钢铁'),
+    ('515210', '钢铁场内'),
+    ('008280', '煤炭'),
+    ('515220', '煤炭场内'),
+    ('008987', '上海金'),
+    ('518600', '金场内'),
+    ('165520', '800有色'),
+    ('018853', '标普石油'),
+    ('100039', '通胀通缩'),
+    ('007786', '一带一路'),
+    ('515150', '一带一路场内'),
+    ('011036', '稀土产业'),
+    ('159698', '粮食场内'),
+    ('021087', '粮食产业'),
+    ('020904', '工程机械'),
+    ('560280', '工程机械场内'),
+    ('161715', '大宗商品'),
+    ('270023', '全球精选'),
+    ('017731', '全球产业升级'),
+    ('005698', '全球科技先锋'),
+    ('018230', '全球优质企业'),
+    ('100055', '全球科技互联网'),
+    ('016702', '海外量化'),
+    ('000043', '美国成长'),
+    ('040046', '纳斯达克'),
+    ('006479', '广发纳斯达克'),
+    ('018147', '新兴市场'),
+    ('008254', '华宝致远'),
+    ('006328', '中概互联网'),
+    ('513050', '中概互联网ETF'),
+    ('000979', '港股深'),
+    ('005555', '恒生国企ETF'),
+    ('159954', '恒生国企场内'),
+    ('013402', '恒生科技'),
+    ('014674', '港股通互联网'),
+    ('159792', '港股通互联网场内'),
+    ('020969', '全球商品QDII'),
+    ('012769', '动漫游戏'),
+    ('159869', '动漫游戏场内'),
+    ('004753', '传媒'),
+    ('512980', '传媒场内'),
     ('000390', '华商优势'),
     ('166301', '华商新趋势'),
     ('720001', '财通价值动量'),
-    ('001170', '宏利复兴伟业'),
-    ('001412', '德邦鑫星价值'),
-    ('001438', '易方达瑞享灵活'),
-    ('001048', '富国新兴产业'),
+    ('001170', '宏利复兴'),
+    ('001412', '德邦鑫星'),
+    ('001438', '瑞享灵活'),
+    ('001048', '新兴产业'),
     ('025942', '广发新动力'),
     ('002163', '东方惠新'),
-    ('020482', '机器人'),
-    ('020900', '中证全指通信设备'),
-    ('024195', '卫星'),
-    ('013305', '科创创业50'),
-    ('012734', '易方达人工智能'),
-    ('006503', '财通集成电路'),
-    ('025732', '华安航天航空'),
-    ('001072', '华安智能装备'),
-    ('022364', '永赢科技'),
-    ('019830', '华夏数字产业'),
-    ('002170', '东吴移动'),
-    ('016664', '天弘高端'),
-    ('008989', '大成科技创新'),
-    ('017877', '汇添富新能源'),
-    ('018926', '电池'),
-    ('019875', '广发稀有金属'),
-    ('001410', '信澳新能源'),
-    ('161028', '富国新能源汽车'),
-    ('501226', '长城全球新能源'),
-    ('019058', '易方达绿色电力'),
-    ('260112', '景顺基建能源'),
-    ('006113', '汇添富创新药'),
-    ('501009', '生物科技'),
-    ('015945', '国防军工'),
-    ('270023', '广发全球精选'),
-    ('017731', '嘉实全球产业升级'),
-    ('005698', '华夏全球科技先锋'),
-    ('018230', '易方达全球优质企业'),
-    ('100055', '富国全球科技互联网'),
-    ('016702', '银华海外量化'),
-    ('000043', '嘉实美国成长'),
-    ('040046', '华安纳斯达克'),
-    ('006328', '易方达中概互联网'),
-    ('013402', '华夏恒生科技'),
-    ('006479', '广发纳斯达克'),
-    ('560770', '机器人ETF招商'),
-    ('515880', '通信ETF国泰'),
-    ('159870', '化工ETF鹏华'),
-    ('512880', '证券ETF国泰'),
-    ('588000', '科创50ETF华夏'),
-    ('159611', '电力ETF广发'),
-    ('159732', '消费电子ETF华夏'),
-    ('159608', '稀有金属ETF广发'),
-    ('159892', '恒生医药ETF华夏'),
-    ('512690', '酒ETF鹏华'),
-    ('159206', '卫星ETF永赢'),
-    ('159755', '电池ETF广发'),
-    ('512560', '军工ETF易方达'),
-    ('513050', '中概互联网ETF易方达'),
-    ('161725', '白酒'),
-    ('012874', '证券指数'),
-    ('005663', '嘉实金融精选'),
-    ('161029', '富国中证银行指数'),
-    ('015896', '化工指数'),
-    ('016185', '电力公用'),
-    ('000979', '景顺港股深'),
-    ('008254', '华宝致远'),
-    ('100039', '富国通胀通缩'),
-    ('018853', '博时标普石油'),
-    ('018147', '建信新兴市场'),
-    ('009049', '易方达高端'),
-    ('019170', '基金019170'),
+    ('001194', '稳健回报'),
 ]
-ETF_CODES=set(['159206', '159608', '159611', '159732', '159736', '159755', '159852', '159869', '159870', '159892', '159928', '159940', '159952', '159954', '510300', '512560', '512620', '512690', '512800', '512880', '512980', '513050', '515210', '515220', '515880', '516290', '516670', '516970', '518600', '560770', '560880', '561980', '588000', '588080'])
+ETF_CODES=set(['159201', '159206', '159326', '159608', '159611', '159698', '159732', '159736', '159755', '159792', '159852', '159869', '159870', '159892', '159928', '159940', '159952', '159954', '159998', '510300', '512010', '512560', '512620', '512690', '512800', '512880', '512980', '513050', '515120', '515150', '515210', '515220', '515250', '515880', '516100', '516290', '516670', '516970', '518600', '560280', '560770', '560880', '561980', '562930', '562990', '588000', '588080', '588160'])
 MACRO={"上证50":"510050","沪深300":"510300","科创50":"588000","创业板":"159915","QQQ":"QQQ","VOO":"VOO"}
 
 SESSION=requests.Session(); SESSION.headers.update(HEAD)
 
 @st.cache_data(ttl=900,show_spinner=False)
-def http_get(url,params=None,timeout=30):
-    # 东方财富偶尔会主动断开连接；V9.1.1 使用重试 + 退避，降低115只基金并发请求导致的 RemoteDisconnected。
+def http_get(url,params=None,timeout=15,referer=None):
+    """统一网络通道：短超时 + 3次重试，失败尽快切换下一数据源。"""
     last=None
-    for attempt in range(5):
+    headers=dict(HEAD)
+    if referer:
+        headers["Referer"]=referer
+    for attempt in range(3):
         try:
-            r=SESSION.get(url,params=params,timeout=timeout)
+            r=SESSION.get(url,params=params,headers=headers,timeout=timeout)
             r.raise_for_status()
             return r
         except Exception as e:
             last=e
-            if attempt<4:
-                time.sleep(0.8*(2**attempt))
-    raise RuntimeError(f"数据源连接失败（已自动重试5次）: {last}")
+            if attempt<2:
+                time.sleep(0.35*(2**attempt))
+    raise RuntimeError(f"通道请求失败（已重试3次）: {last}")
 
-@st.cache_data(ttl=43200,show_spinner=False)
+@st.cache_data(ttl=86400,show_spinner=False)
 def fund_hist(code):
-    code=str(code).zfill(6)
-    r=http_get(f"https://fund.eastmoney.com/pingzhongdata/{code}.js",{"v":int(time.time()*1000)})
-    m=re.search(r"Data_netWorthTrend\s*=\s*(\[[\s\S]*?\]);",r.text)
-    if not m: raise RuntimeError("东方财富历史净值接口无有效数据")
-    rows=[]
-    for z in json.loads(m.group(1)):
-        try: rows.append((pd.to_datetime(int(z["x"]),unit="ms"),float(z["y"])))
-        except: pass
-    if len(rows)<40: raise RuntimeError(f"历史净值仅{len(rows)}条")
-    return pd.DataFrame(rows,columns=["date","close"]).set_index("date").sort_index().assign(volume=np.nan)
+    """开放式基金历史净值：主通道 pingzhongdata，备用 F10 JSON，再备用 F10 HTML。"""
+    code=str(code).zfill(6); errors=[]
+    # 通道1：pingzhongdata JS
+    try:
+        r=http_get(f"https://fund.eastmoney.com/pingzhongdata/{code}.js",{"v":int(time.time()*1000)},timeout=12)
+        m=re.search(r"Data_netWorthTrend\s*=\s*(\[[\s\S]*?\]);",r.text)
+        if m:
+            rows=[]
+            for z in json.loads(m.group(1)):
+                try: rows.append((pd.to_datetime(int(z["x"]),unit="ms"),float(z["y"])))
+                except: pass
+            if len(rows)>=40:
+                return pd.DataFrame(rows,columns=["date","close"]).set_index("date").sort_index().assign(volume=np.nan)
+        errors.append("pingzhongdata无有效历史")
+    except Exception as e: errors.append(f"pingzhongdata:{e}")
+    # 通道2：F10 JSON 历史净值
+    try:
+        p={"fundCode":code,"pageIndex":1,"pageSize":500,"startDate":"","endDate":"","_":int(time.time()*1000)}
+        r=http_get("https://api.fund.eastmoney.com/f10/lsjz",p,timeout=12,referer="https://fundf10.eastmoney.com/")
+        z=r.json(); rows=[]
+        for item in ((z.get("Data") or {}).get("LSJZList") or []):
+            try: rows.append((pd.to_datetime(item["FSRQ"]),float(item["DWJZ"])))
+            except: pass
+        if len(rows)>=40:
+            return pd.DataFrame(rows,columns=["date","close"]).set_index("date").sort_index().assign(volume=np.nan)
+        errors.append(f"F10 JSON仅{len(rows)}条")
+    except Exception as e: errors.append(f"F10 JSON:{e}")
+    # 通道3：F10DataApi HTML 表格
+    try:
+        p={"type":"lsjz","code":code,"page":1,"per":200}
+        r=http_get("https://fund.eastmoney.com/f10/F10DataApi.aspx",p,timeout=12,referer="https://fundf10.eastmoney.com/")
+        dates=re.findall(r'<td>(\d{4}-\d{2}-\d{2})</td>\s*<td class="tor bold">([0-9.]+)</td>',r.text)
+        rows=[(pd.to_datetime(d),float(v)) for d,v in dates]
+        if len(rows)>=40:
+            return pd.DataFrame(rows,columns=["date","close"]).set_index("date").sort_index().assign(volume=np.nan)
+        errors.append(f"F10 HTML仅{len(rows)}条")
+    except Exception as e: errors.append(f"F10 HTML:{e}")
+    raise RuntimeError("基金历史数据3通道全部失败："+" | ".join(errors[-3:]))
 
-@st.cache_data(ttl=43200,show_spinner=False)
+@st.cache_data(ttl=86400,show_spinner=False)
 def etf_hist(code):
-    # ETF优先走K线接口；若被东方财富临时断开，则自动切换备用历史净值/Yahoo，避免整只基金判定为失败。
-    code=str(code).zfill(6)
-    errors=[]
+    """ETF历史K线多通道：东财双节点 → 腾讯 → 新浪 → 基金净值 → Yahoo。"""
+    code=str(code).zfill(6); errors=[]
     secid=("1."+code) if code.startswith(("5","6","68")) else ("0."+code)
     p={"secid":secid,"fields1":"f1,f2,f3,f4,f5,f6","fields2":"f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61","klt":"101","fqt":"1","beg":"0","end":"20500101","lmt":"500"}
-    for endpoint in [
-        "https://push2his.eastmoney.com/api/qt/stock/kline/get",
-        "https://push2.eastmoney.com/api/qt/stock/kline/get",
-    ]:
+    for endpoint in ["https://push2his.eastmoney.com/api/qt/stock/kline/get","https://push2.eastmoney.com/api/qt/stock/kline/get"]:
         try:
-            j=http_get(endpoint,p,timeout=30).json(); ks=((j.get("data") or {}).get("klines") or [])
+            j=http_get(endpoint,p,timeout=10).json(); ks=((j.get("data") or {}).get("klines") or [])
             rows=[]
             for item in ks:
                 z=item.split(",")
                 try: rows.append({"date":z[0],"open":float(z[1]),"close":float(z[2]),"high":float(z[3]),"low":float(z[4]),"volume":float(z[5])})
                 except: pass
-            if len(rows)>=40:
-                return pd.DataFrame(rows)
-            errors.append(f"{endpoint}: K线仅{len(rows)}条")
-        except Exception as e:
-            errors.append(f"{endpoint}: {e}")
-    # 备用1：部分ETF在基金净值接口也能提供足够长的历史序列。
+            if len(rows)>=40: return pd.DataFrame(rows)
+            errors.append(f"{endpoint.split('//')[1].split('/')[0]}仅{len(rows)}条")
+        except Exception as e: errors.append(f"东财:{e}")
+    # 腾讯日K
+    try:
+        tq=("sh" if code.startswith(("5","6","68")) else "sz")+code
+        url="https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
+        r=http_get(url,{"_var":"kline_dayqfq","param":f"{tq},day,,,{500},qfq"},timeout=10,referer="https://finance.qq.com/")
+        raw=r.text; raw=raw[raw.find("=")+1:] if "=" in raw else raw
+        z=json.loads(raw); d=((z.get("data") or {}).get(tq) or {}); arr=d.get("qfqday") or d.get("day") or []
+        rows=[]
+        for a in arr:
+            try: rows.append({"date":a[0],"open":float(a[1]),"close":float(a[2]),"high":float(a[3]),"low":float(a[4]),"volume":float(a[5])})
+            except: pass
+        if len(rows)>=40: return pd.DataFrame(rows)
+        errors.append(f"腾讯K线仅{len(rows)}条")
+    except Exception as e: errors.append(f"腾讯K线:{e}")
+    # 新浪日K
+    try:
+        sg=("sh" if code.startswith(("5","6","68")) else "sz")+code
+        r=http_get("https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData",{"symbol":sg,"scale":240,"ma":"no","datalen":1023},timeout=10,referer="https://finance.sina.com.cn/")
+        arr=r.json(); rows=[]
+        for a in arr:
+            try: rows.append({"date":a["day"],"open":float(a["open"]),"close":float(a["close"]),"high":float(a["high"]),"low":float(a["low"]),"volume":float(a["volume"])})
+            except: pass
+        if len(rows)>=40: return pd.DataFrame(rows)
+        errors.append(f"新浪K线仅{len(rows)}条")
+    except Exception as e: errors.append(f"新浪K线:{e}")
     try:
         d=fund_hist(code)
         if len(d)>=40: return d
-    except Exception as e:
-        errors.append(f"基金历史净值备用: {e}")
-    # 备用2：Yahoo；上海ETF用.SS，深圳ETF用.SZ。
+    except Exception as e: errors.append(f"基金净值:{e}")
     suffix=".SS" if code.startswith(("5","6","68")) else ".SZ"
     try:
         d=yahoo_hist(code+suffix)
         if len(d)>=40: return d
-    except Exception as e:
-        errors.append(f"Yahoo备用: {e}")
-    raise RuntimeError("ETF历史数据全部通道失败；已自动重试并切换备用源。" + " | ".join(errors[-3:]))
+    except Exception as e: errors.append(f"Yahoo:{e}")
+    raise RuntimeError("ETF历史数据5通道全部失败："+" | ".join(errors[-5:]))
 
 @st.cache_data(ttl=300,show_spinner=False)
 def fund_rt(code):
-    code=str(code).zfill(6); r=http_get(f"https://fundgz.1234567.com.cn/js/{code}.js",{"rt":int(time.time()*1000)})
-    m=re.search(r"jsonpgz\((.*)\)",r.text)
-    if not m: raise RuntimeError("基金盘中估值无返回")
-    z=json.loads(m.group(1)); price=float(z["gsz"]) if z.get("gsz") not in (None,"") else np.nan; pct=float(z["gszzl"]) if z.get("gszzl") not in (None,"") else np.nan
-    return {"price":price,"pct":pct,"time":z.get("gztime","")}
+    code=str(code).zfill(6); errors=[]
+    # 天天基金估值
+    try:
+        r=http_get(f"https://fundgz.1234567.com.cn/js/{code}.js",{"rt":int(time.time()*1000)},timeout=8)
+        m=re.search(r"jsonpgz\((.*)\)",r.text)
+        if m:
+            z=json.loads(m.group(1)); price=float(z["gsz"]) if z.get("gsz") not in (None,"") else np.nan; pct=float(z["gszzl"]) if z.get("gszzl") not in (None,"") else np.nan
+            return {"price":price,"pct":pct,"time":z.get("gztime","")}
+        errors.append("天天基金无返回")
+    except Exception as e: errors.append(f"天天基金:{e}")
+    # 腾讯基金基础净值兜底：用于最新值/涨跌，字段随基金类型可能缺失，所以只在可解析时使用
+    try:
+        r=http_get(f"https://qt.gtimg.cn/q=jj{code}",timeout=8,referer="https://fund.qq.com/")
+        txt=r.content.decode("gbk",errors="ignore"); m=re.search(r'="(.*?)"',txt)
+        if m:
+            a=m.group(1).split("~"); nums=[]
+            for v in a:
+                try: nums.append(float(v))
+                except: nums.append(np.nan)
+            vals=[v for v in nums if pd.notna(v) and v>0]
+            if vals:
+                price=vals[-1]
+                return {"price":price,"pct":np.nan,"time":"腾讯基金兜底"}
+        errors.append("腾讯基金无可用净值")
+    except Exception as e: errors.append(f"腾讯基金:{e}")
+    raise RuntimeError("基金实时估值2通道失败："+" | ".join(errors))
+
+@st.cache_data(ttl=180,show_spinner=False)
+def tencent_quote(code):
+    code=str(code).zfill(6); sym=("sh" if code.startswith(("5","6","68")) else "sz")+code
+    r=http_get("https://qt.gtimg.cn/q="+sym,timeout=8,referer="https://finance.qq.com/")
+    txt=r.content.decode("gbk",errors="ignore"); m=re.search(r'="(.*?)"',txt)
+    if not m: raise RuntimeError("腾讯行情无返回")
+    a=m.group(1).split("~")
+    if len(a)<33: raise RuntimeError("腾讯行情字段不足")
+    price=float(a[3]); pct=float(a[32])
+    return {"price":price,"pct":pct}
+
+@st.cache_data(ttl=180,show_spinner=False)
+def sina_quote(code):
+    code=str(code).zfill(6); sym=("sh" if code.startswith(("5","6","68")) else "sz")+code
+    r=http_get("https://hq.sinajs.cn/list="+sym,timeout=8,referer="https://finance.sina.com.cn/")
+    txt=r.content.decode("gbk",errors="ignore"); m=re.search(r'="(.*?)"',txt)
+    if not m: raise RuntimeError("新浪行情无返回")
+    a=m.group(1).split(",")
+    if len(a)<4: raise RuntimeError("新浪行情字段不足")
+    return {"price":float(a[3]),"pct":(float(a[3])-float(a[2]))/float(a[2])*100 if float(a[2]) else np.nan}
 
 @st.cache_data(ttl=180,show_spinner=False)
 def etf_rt(code):
-    code=str(code).zfill(6); secid=("1."+code) if code.startswith(("5","6","68")) else ("0."+code)
-    z=(http_get("https://push2.eastmoney.com/api/qt/stock/get",{"secid":secid,"fields":"f43,f58,f169,f170"}).json().get("data") or {})
-    if not z: raise RuntimeError("ETF实时行情无返回")
-    return {"price":float(z["f43"]),"pct":float(z["f170"])/100}
+    code=str(code).zfill(6); errors=[]; secid=("1."+code) if code.startswith(("5","6","68")) else ("0."+code)
+    try:
+        z=(http_get("https://push2.eastmoney.com/api/qt/stock/get",{"secid":secid,"fields":"f43,f58,f169,f170"},timeout=8).json().get("data") or {})
+        if z: return {"price":float(z["f43"]),"pct":float(z["f170"])/100,"channel":"东方财富"}
+        errors.append("东财无返回")
+    except Exception as e: errors.append(f"东财:{e}")
+    try:
+        z=tencent_quote(code); z["channel"]="腾讯"; return z
+    except Exception as e: errors.append(f"腾讯:{e}")
+    try:
+        z=sina_quote(code); z["channel"]="新浪"; return z
+    except Exception as e: errors.append(f"新浪:{e}")
+    raise RuntimeError("ETF实时3通道失败："+" | ".join(errors))
 
 @st.cache_data(ttl=21600,show_spinner=False)
 def yahoo_hist(sym):
@@ -345,35 +480,68 @@ def process_one(code,name):
         if rt and pd.notna(rt.get("price")):
             latest=float(rt["price"]); pct=float(rt["pct"]) if pd.notna(rt.get("pct")) else pct
         level,level_reason=classify(x,s)
-        out.update({"状态":"正常","数据源":source,"最新值":round(latest,4),"涨跌%":round(pct,2),"评分":s,"买入等级":level,"等级说明":level_reason,"RSI":round(float(r.RSI),2) if pd.notna(r.RSI) else np.nan,"MA5/20":"金叉" if bool(r.MA_GOLDEN) else ("多头" if r.MA5>r.MA20 else "空头"),"MACD":"金叉" if bool(r.MACD_GOLDEN) else ("多头" if r.MACD>r.SIGNAL else "空头"),"MA20趋势":"向上" if pd.notna(r.MA20_SLOPE) and r.MA20_SLOPE>0 else "向下","20日动量%":round(float(r.RET20),2) if pd.notna(r.RET20) else np.nan,"60日动量%":round(float(r.RET60),2) if pd.notna(r.RET60) else np.nan,"回撤%":round(float(r.DD),2) if pd.notna(r.DD) else np.nan,"布林位置%":round(float(r.BB_POS),2) if pd.notna(r.BB_POS) else np.nan,"年化波动%":round(float(r.VOL),2) if pd.notna(r.VOL) else np.nan,"建议":level,"共振理由":why,"风险提示":"、".join(risk) if risk else "暂无明显风险"})
+        out.update({"状态":"正常","数据源":source,"实时通道":rt.get("channel", "天天基金") if rt else "历史数据", "最新值":round(latest,4),"涨跌%":round(pct,2),"评分":s,"买入等级":level,"等级说明":level_reason,"RSI":round(float(r.RSI),2) if pd.notna(r.RSI) else np.nan,"MA5/20":"金叉" if bool(r.MA_GOLDEN) else ("多头" if r.MA5>r.MA20 else "空头"),"MACD":"金叉" if bool(r.MACD_GOLDEN) else ("多头" if r.MACD>r.SIGNAL else "空头"),"MA20趋势":"向上" if pd.notna(r.MA20_SLOPE) and r.MA20_SLOPE>0 else "向下","20日动量%":round(float(r.RET20),2) if pd.notna(r.RET20) else np.nan,"60日动量%":round(float(r.RET60),2) if pd.notna(r.RET60) else np.nan,"回撤%":round(float(r.DD),2) if pd.notna(r.DD) else np.nan,"布林位置%":round(float(r.BB_POS),2) if pd.notna(r.BB_POS) else np.nan,"年化波动%":round(float(r.VOL),2) if pd.notna(r.VOL) else np.nan,"建议":level,"共振理由":why,"风险提示":"、".join(risk) if risk else "暂无明显风险"})
     except Exception as e: out["错误"]=str(e)
     return out
 
-@st.cache_data(ttl=600,show_spinner=False)
+@st.cache_data(ttl=21600,show_spinner=False)
+def macro_one(n,c):
+    try:
+        d=yahoo_hist(c) if c in ("QQQ","VOO") else (etf_hist(c) if c in ETF_CODES else fund_hist(c)); x=indicators(d); s,_,_=score(x)
+        return {"名称":n,"评分":s,"建议":"多头" if s>=70 else ("中性" if s>=50 else "偏弱")}
+    except Exception as e:
+        return {"名称":n,"评分":np.nan,"建议":"数据失败","错误":str(e)}
+
+@st.cache_data(ttl=21600,show_spinner=False)
 def macro_snapshot():
-    rows=[]
-    for n,c in MACRO.items():
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        return pd.DataFrame(list(ex.map(lambda kv: macro_one(*kv), MACRO.items())))
+
+def channel_probe():
+    """从当前部署服务器实测主要数据通道；用于排查云端网络/接口波动。"""
+    tests=[
+        ("东方财富 ETF K线", "https://push2his.eastmoney.com/api/qt/stock/kline/get", {"secid":"1.510300","fields1":"f1,f2,f3,f4,f5,f6","fields2":"f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61","klt":"101","fqt":"1","beg":"0","end":"20500101","lmt":"60"}),
+        ("东方财富 ETF实时", "https://push2.eastmoney.com/api/qt/stock/get", {"secid":"1.510300","fields":"f43,f58,f169,f170"}),
+        ("天天基金估值", "https://fundgz.1234567.com.cn/js/001549.js", {"rt":int(time.time()*1000)}),
+        ("东方财富基金历史", "https://fund.eastmoney.com/pingzhongdata/001549.js", {"v":int(time.time()*1000)}),
+        ("腾讯 ETF实时", "https://qt.gtimg.cn/q=sh510300", None),
+        ("新浪 ETF实时", "https://hq.sinajs.cn/list=sh510300", None),
+        ("Yahoo ETF历史", "https://query1.finance.yahoo.com/v8/finance/chart/510300.SS", {"period1":int(time.time())-90*86400,"period2":int(time.time()),"interval":"1d"}),
+    ]
+    out=[]
+    for name,url,params in tests:
+        t=time.time()
         try:
-            d=yahoo_hist(c) if c in ("QQQ","VOO") else (etf_hist(c) if c in ETF_CODES else fund_hist(c)); x=indicators(d); r=x.iloc[-1]; s,_,_=score(x)
-            rows.append({"名称":n,"评分":s,"建议":"多头" if s>=70 else ("中性" if s>=50 else "偏弱")})
-        except Exception as e: rows.append({"名称":n,"评分":np.nan,"建议":"数据失败","错误":str(e)})
-    return pd.DataFrame(rows)
+            r=http_get(url,params,timeout=6)
+            ok=len(r.content)>20
+            out.append({"通道":name,"状态":"🟢 通畅" if ok else "🟠 有响应但内容异常","耗时(秒)":round(time.time()-t,2),"HTTP":r.status_code,"返回字节":len(r.content),"错误":""})
+        except Exception as e:
+            out.append({"通道":name,"状态":"🔴 失败","耗时(秒)":round(time.time()-t,2),"HTTP":"-","返回字节":0,"错误":str(e)[:160]})
+    return pd.DataFrame(out)
 
 with st.sidebar:
-    st.header("📡 V9.1.1 严格买入版 · 稳定数据版")
+    st.header("📡 V9.2 · 153只基金 · 多通道加速版")
     if st.button("🔄 立即刷新全部数据",use_container_width=True): st.cache_data.clear(); st.rerun()
+    if st.button("🧪 测试数据通道是否通畅",use_container_width=True):
+        st.session_state["channel_probe"]=channel_probe()
     search=st.text_input("搜索代码/名称")
     threshold=st.slider("最低技术评分",0,100,60,5)
     signal=st.selectbox("信号筛选",["全部","🟢 强买入","🟡 回调加仓","🔵 观察","⚪ 持有/等待","🟠 减仓/观望","🔴 高风险/回避","金叉","多头"])
-    st.caption("自动刷新：15分钟。数据异常会自动重试5次，并对ETF启用备用数据源；严格买入需要趋势、MACD、RSI、20/60日动量同时确认。")
+    st.caption("自动刷新：15分钟。历史数据采用多通道：东方财富→F10→腾讯→新浪→Yahoo；实时数据采用东方财富→腾讯→新浪备用。并发8路，历史缓存24小时。")
+    if "channel_probe" in st.session_state:
+        st.success("通道测试完成：下面主页面会显示详细结果。")
 try:
     from streamlit_autorefresh import st_autorefresh; st_autorefresh(interval=900000,key="v91_auto15")
 except: pass
 
 items=load_items()
-if len(items)<100: items=BUILTIN_FUNDS.copy()
-st.title("📡 基金智能监控雷达 PRO MAX V9.1.1")
-st.caption("115只基金 · 稳定数据版：自动重试 + ETF双接口 + 基金净值/Yahoo备用源 · 严格多指标共振：趋势 + MA金叉 + MACD + RSI + 20/60日动量 + 回撤 + 波动率 · 买入信号采用硬性门槛")
+if len(items)<153: items=BUILTIN_FUNDS.copy()
+if len({c for c,_ in items}) < 153: items=BUILTIN_FUNDS.copy()
+st.title("📡 基金智能监控雷达 PRO MAX V9.2")
+if "channel_probe" in st.session_state:
+    with st.expander("🧪 最近一次数据通道实测结果",expanded=True):
+        st.dataframe(st.session_state["channel_probe"],use_container_width=True,hide_index=True)
+st.caption("153只基金 · 多通道加速稳定版：东方财富 / F10 / 腾讯 / 新浪 / Yahoo 多源备用 · 严格多指标共振：趋势 + MACD + RSI + 20/60日动量 + 回撤 + 波动率 · 买入信号采用硬性门槛")
 
 st.subheader("🌍 大环境 / QQQ / VOO")
 mc=st.columns(6)
@@ -383,8 +551,8 @@ try:
 except: pass
 
 st.subheader("🔥 今日决策中心")
-bar=st.progress(0,"正在获取115只基金数据……"); rows=[]
-with ThreadPoolExecutor(max_workers=3) as ex:
+bar=st.progress(0,f"正在获取{len(items)}只基金数据……"); rows=[]
+with ThreadPoolExecutor(max_workers=8) as ex:
     fs=[ex.submit(process_one,c,n) for c,n in items]
     for i,f in enumerate(as_completed(fs),1):
         try: rows.append(f.result())
@@ -427,9 +595,14 @@ else:
     cols=["代码","名称","最新值","涨跌%","评分","买入等级","RSI","MA5/20","MACD","MA20趋势","20日动量%","60日动量%","回撤%","年化波动%","等级说明","风险提示"]
     st.dataframe(view[view["评分"]>=threshold][[c for c in cols if c in view.columns]],use_container_width=True,hide_index=True,column_config={"评分":st.column_config.ProgressColumn("技术评分",min_value=0,max_value=100,format="%d")})
 
+with st.expander("📡 数据通道说明 / 本轮实际使用通道"):
+    st.markdown("**历史：** 东方财富 pingzhongdata / F10 JSON / F10 HTML；ETF额外启用东方财富K线双节点、腾讯K线、新浪K线、Yahoo。\n\n**实时：** 开放式基金优先天天基金，失败后腾讯基金兜底；ETF优先东方财富，失败后腾讯、再新浪。\n\n**加速：** 153只基金并发提升到8路；历史数据缓存24小时，实时数据缓存3–5分钟。")
+    if not df.empty and "实时通道" in df.columns:
+        st.dataframe(df["实时通道"].value_counts().rename_axis("通道").reset_index(name="数量"),use_container_width=True,hide_index=True)
+
 with st.expander(f"⚠️ 数据源诊断（失败 {len(df[df['状态']!='正常']) if not df.empty else 0} 个）"):
     bad=df[df["状态"]!="正常"] if not df.empty else pd.DataFrame()
     if not bad.empty: st.dataframe(bad[["代码","名称","错误"]],use_container_width=True,hide_index=True)
-    else: st.success("本轮115只基金全部成功获取。")
-st.caption(f"V9.1 严格版 · 内置115只基金 · 缓存15分钟 · 最后刷新：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} · 信号仅作辅助，不构成投资建议")
+    else: st.success("本轮153只基金全部成功获取。")
+st.caption(f"V9.2 多通道加速版 · 内置153只基金 · 历史缓存24小时 / 实时缓存3-5分钟 · 最后刷新：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} · 信号仅作辅助，不构成投资建议")
 
